@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "-[ImageViewController viewWillLayoutSubviews]:ImageViewController.m">
+         <PersistentStrings>
+            <PersistentString
+               value = "(CGRect)[[self scrollView] bounds]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>
