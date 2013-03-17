@@ -12,5 +12,11 @@
 
 + (Tag *)tagWithName:(NSString *)name
                 inManagedObjectContext:(NSManagedObjectContext *)context;
++ (NSArray *)excludedTags;
++ (NSString *)AllTagName;
+- (NSSet *)nonDeletedPhotos;
+- (NSString *)capitalizedName;
+
+@property (nonatomic, strong, readonly) NSString* sectionHeader;
 
 @end

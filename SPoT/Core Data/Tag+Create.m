@@ -38,4 +38,34 @@
     return tag;
 }
 
+// triming to show '$All' tag as 'All'
+-(NSString *)sectionHeader
+{
+    return [[[self.name substringToIndex:1] capitalizedString] stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
+}
+
+- (NSString *)capitalizedName
+{
+    return [self.name capitalizedString];
+}
+
+- (NSSet *)nonDeletedPhotos
+{
+    return [self.photos filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"displayed=YES"]];
+}
+
++ (NSString *)AllTagName
+{
+    return @"$All"; // # sorts before any letter 'a'..'z','A'..'Z'
+}
+
++ (NSArray*)excludedTags
+{
+    static NSArray* excludedTags = nil;
+    if (!excludedTags) {
+        excludedTags = @[@"cs193pspot",@"portrait",@"landscape"];
+    }
+    return excludedTags;
+}
+
 @end

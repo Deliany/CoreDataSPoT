@@ -13,4 +13,6 @@
 + (Photo *)photoWithFlickrInfo:(NSDictionary *)photoDictionary
         inManagedObjectContext:(NSManagedObjectContext *)context;
 
+@property (nonatomic, strong, readonly) NSString* sectionHeader;
+
 @end

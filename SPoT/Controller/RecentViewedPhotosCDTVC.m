@@ -7,91 +7,43 @@
 //
 
 #import "RecentViewedPhotosCDTVC.h"
-#import "Photo.h"
-#import "Tag+Create.h"
-#import "FlickrFetcher.h"
+#import "CoreDataHelper.h"
 
+
+@interface RecentViewedPhotosCDTVC()
+
+@property (nonatomic,strong) NSManagedObjectContext *managedObjectContext;
+
+@end
 
 @implementation RecentViewedPhotosCDTVC
 
-@synthesize managedObjectContext = _managedObjectContext;
+#define MAX_RECENT_PHOTOS_TO_SHOW 5
 
-#pragma mark - Properties
-
--(void)setManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
+- (void)reloadRecentList
 {
-    _managedObjectContext = managedObjectContext;
-    if (managedObjectContext) {
+    if (self.managedObjectContext) {
         NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Photo"];
         request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastViewDate" ascending:NO]];
-        request.predicate = [NSPredicate predicateWithFormat:@"lastViewDate != nil"];
-        [request setFetchLimit:10];
-        
-        self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:nil cacheName:nil];
-        
-        [self refresh];
+        request.predicate = [NSPredicate predicateWithFormat:@"lastViewDate != nil AND displayed=YES"];
+        request.fetchLimit = MAX_RECENT_PHOTOS_TO_SHOW;
+        self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:self.managedObjectContext sectionNameKeyPath:nil cacheName:nil];
     } else {
         self.fetchedResultsController = nil;
     }
 }
 
-#pragma mark - UITableViewDataSource
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+- (void)setManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Cell"];
-    
-    Photo *photo = [self.fetchedResultsController objectAtIndexPath:indexPath];
-    
-    cell.textLabel.text = photo.title;
-    cell.detailTextLabel.text = photo.shortInfo;
-    cell.imageView.image = [UIImage imageWithData:photo.imageThumbnail];
-    
-    return cell;
-    
+    _managedObjectContext = managedObjectContext;
+    [self reloadRecentList];
 }
 
-#pragma mark - Segue
-
-#define SHOW_IMAGE_SEGUE_ID @"Show Image"
-
-- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
+- (void)viewWillAppear:(BOOL)animated
 {
-    if ([sender isKindOfClass:[UITableViewCell class]]) {
-        NSIndexPath *indexPath = [self.tableView indexPathForCell:sender];
-        if (indexPath) {
-            if ([segue.identifier isEqualToString:SHOW_IMAGE_SEGUE_ID]) {
-                if ([segue.destinationViewController respondsToSelector:@selector(setImageURL:)]) {
-                    
-                    Photo *photo = [self.fetchedResultsController objectAtIndexPath:indexPath];
-                    
-                    photo.lastViewDate = [NSDate date];
-                    
-                    
-                    NSURL *url = [NSURL URLWithString:photo.urlLarge];
-                    if (([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)) {
-                        [self performSelector:@selector(transferSplitViewBarButtonItemToViewController:) withObject:segue.destinationViewController];
-                        url = [NSURL URLWithString:photo.urlOriginal];
-                    }
-                    
-                    [segue.destinationViewController performSelector:@selector(setImageURL:) withObject:url];
-                    [segue.destinationViewController setTitle:photo.title];
-                    
-                }
-            }
-        }
-    }
-}
-
-#pragma mark - Refreshing
-
-- (IBAction)refresh
-{
-    [self.refreshControl beginRefreshing];
-    [self performFetch];
-    [self.tableView reloadData];
-    [self.refreshControl endRefreshing];
-
+    [super viewWillAppear:animated];
+    if (!self.managedObjectContext)
+        self.managedObjectContext = [CoreDataHelper sharedManagedDocument].sharedDocument.managedObjectContext;
 }
 
 @end

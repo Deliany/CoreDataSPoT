@@ -8,10 +8,6 @@
 
 #import "CoreDataTableViewController.h"
 
-@interface FlickrPhotoCDTVC : CoreDataTableViewController <UISplitViewControllerDelegate>
-
-@property (nonatomic, strong) NSManagedObjectContext *managedObjectContext;
-
-- (IBAction)refresh; // abstract
+@interface FlickrPhotoCDTVC : CoreDataTableViewController
 
 @end

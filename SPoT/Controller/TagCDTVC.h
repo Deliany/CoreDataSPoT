@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Clear Sky. All rights reserved.
 //
 
-#import "FlickrPhotoCDTVC.h"
+#import "CoreDataTableViewController.h"
 
-@interface TagCDTVC : FlickrPhotoCDTVC
+@interface TagCDTVC : CoreDataTableViewController
 
 @end

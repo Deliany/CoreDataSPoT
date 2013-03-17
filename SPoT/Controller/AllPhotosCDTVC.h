@@ -10,4 +10,6 @@
 
 @interface AllPhotosCDTVC : FlickrPhotoCDTVC
 
+@property (nonatomic,strong) NSManagedObjectContext *managedObjectContext;
+
 @end

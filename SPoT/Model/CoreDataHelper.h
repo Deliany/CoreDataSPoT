@@ -10,4 +10,8 @@
 
 @interface CoreDataHelper : NSObject
 
+@property (strong, nonatomic, readonly) UIManagedDocument *sharedDocument;
+
++ (CoreDataHelper *)sharedManagedDocument;
+
 @end

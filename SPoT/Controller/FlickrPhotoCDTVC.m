@@ -8,79 +8,100 @@
 
 #import "FlickrPhotoCDTVC.h"
 #import "ImageViewController.h"
-#import "FlickrFetcher.h"
-#import "Photo+Flickr.h"
+#import "Photo.h"
+#import "NetworkActivityIndicatorManager.h"
+
+@interface FlickrPhotoCDTVC () <UISplitViewControllerDelegate>
+
+@end
+
 
 @implementation FlickrPhotoCDTVC
 
-#pragma mark - View Controller Lifecycle
-
--(void)viewDidLoad
+- (Photo *)photoForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    [super viewDidLoad];
-    [self.refreshControl addTarget:self
-                            action:@selector(refresh)
-                  forControlEvents:UIControlEventValueChanged];
+    return [self.fetchedResultsController objectAtIndexPath:indexPath];
 }
 
-- (void)viewWillAppear:(BOOL)animated
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    [super viewWillAppear:animated];
-    if (!self.managedObjectContext) [self useDemoDocument];
-    [self refresh];
-}
-
-- (void)useDemoDocument
-{
-    NSURL *url = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
-    url = [url URLByAppendingPathComponent:@"CoreDataModel"];
-    UIManagedDocument *document = [[UIManagedDocument alloc] initWithFileURL:url];
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Photo"];
+    cell.imageView.image = nil; // because we reuse cells we have to clear the image
+    Photo *photo = [self photoForRowAtIndexPath:indexPath];
     
-    if (![[NSFileManager defaultManager] fileExistsAtPath:[url path]]) {
-        [document saveToURL:url
-           forSaveOperation:UIDocumentSaveForCreating
-          completionHandler:^(BOOL success) {
-              if (success) {
-                  self.managedObjectContext = document.managedObjectContext;
-                  [self fetchAllPhotosToDB];
-                  [self refresh];
-              }
-          }];
-    } else if (document.documentState == UIDocumentStateClosed) {
-        [document openWithCompletionHandler:^(BOOL success) {
-            if (success) {
-                self.managedObjectContext = document.managedObjectContext;
+    cell.textLabel.text = photo.title;
+    cell.detailTextLabel.text = photo.subtitle;
+    if (!photo.thumbnailImage) {
+        // if the thumbnail is not in the database then get it from Flickr
+        dispatch_queue_t thumbnailQ = dispatch_queue_create("thumbnail loader", NULL);
+        dispatch_async(thumbnailQ, ^{
+            // if the tumbnail is not in the database then get it from Flickr
+            NSData *thumbnailData = photo.thumbnailImage;
+            if (!thumbnailData) {
+                [NetworkActivityIndicatorManager networkActivityIndicatorShouldShow];
+                NSURL *url = [NSURL URLWithString:photo.thumbnailImageUrl];
+                thumbnailData = [[NSData alloc] initWithContentsOfURL:url];
+                [NetworkActivityIndicatorManager networkActivityIndicatorShouldHide];
             }
-        }];
-    } else {
-        self.managedObjectContext = document.managedObjectContext;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                // put the image in the cell imageView and mark the cell for redraw
+                cell.imageView.image = [UIImage imageWithData:thumbnailData];
+                [cell setNeedsLayout];
+                // store the thumbnail in the database
+                [photo.managedObjectContext performBlock:^{
+                    photo.thumbnailImage = thumbnailData;
+                }];
+            });
+        });
+    } else
+        cell.imageView.image = [UIImage imageWithData:photo.thumbnailImage];
+    return cell;
+}
+
+#pragma mark - Segue
+
+#define SHOW_IMAGE_SEGUE_ID @"Show Image"
+
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
+{
+    if ([sender isKindOfClass:[UITableViewCell class]]) {
+        NSIndexPath *indexPath = [self.tableView indexPathForCell:sender];
+        if (indexPath) {
+            if ([segue.identifier isEqualToString:SHOW_IMAGE_SEGUE_ID]) {
+                if ([segue.destinationViewController respondsToSelector:@selector(setImageURL:)]) {
+                    
+                    [self transferSplitViewBarButtonItemToViewController:segue.destinationViewController];
+                    Photo *photo = [self photoForRowAtIndexPath:indexPath];
+                    
+                    photo.lastViewDate = [NSDate date];
+                    
+                    NSURL *url = [NSURL URLWithString:photo.largeImageUrl];
+                    if (([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)) {
+                        [self performSelector:@selector(transferSplitViewBarButtonItemToViewController:) withObject:segue.destinationViewController];
+                        url = [NSURL URLWithString:photo.originalImageUrl];
+                    }
+           
+                    [segue.destinationViewController performSelector:@selector(setImageURL:) withObject:url];
+                    [segue.destinationViewController setTitle:photo.title];
+                }
+            }
+        }
     }
 }
 
-#pragma mark - Refreshing
-
-- (IBAction)refresh
+- (void)removePhotoFromDisplayedPhotosForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    // abstract
+    Photo *photo = [self photoForRowAtIndexPath:indexPath];
+    photo.displayed = @(NO);
 }
 
-- (void) fetchAllPhotosToDB
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    [self.refreshControl beginRefreshing];
-    dispatch_queue_t fetchQ = dispatch_queue_create("Flickr All Photos Fetch", NULL);
-    dispatch_async(fetchQ, ^{
-        NSArray *photosForTag = [FlickrFetcher stanfordPhotos];
-        // put the photos in Core Data
-        [self.managedObjectContext performBlock:^{
-            for (NSDictionary *photo in photosForTag) {
-                [Photo photoWithFlickrInfo:photo inManagedObjectContext:self.managedObjectContext];
-            }
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self.tableView reloadData];
-                [self.refreshControl endRefreshing];
-            });
-        }];
-    });
+    if (editingStyle == UITableViewCellEditingStyleDelete){
+        [self removePhotoFromDisplayedPhotosForRowAtIndexPath:indexPath];
+        [self.fetchedResultsController performFetch:nil];
+        [self.tableView reloadData];
+    }
 }
 
 #pragma mark - UISplitViewControllerDelegate

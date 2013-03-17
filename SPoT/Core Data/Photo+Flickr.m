@@ -8,7 +8,6 @@
 
 #import "Photo+Flickr.h"
 #import "FlickrFetcher.h"
-#import "Photographer+Create.h"
 #import "Tag+Create.h"
 #import "NetworkActivityIndicatorManager.h"
 
@@ -22,8 +21,8 @@
     // The "unique" attribute in Photo is Flickr's "id" which is guaranteed by Flickr to be unique.
     
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Photo"];
-    request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"title" ascending:YES]];
-    request.predicate = [NSPredicate predicateWithFormat:@"identifier = %@", [photoDictionary[FLICKR_PHOTO_ID] description]];
+    request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"title" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)]];
+    request.predicate = [NSPredicate predicateWithFormat:@"unique = %@", [photoDictionary[FLICKR_PHOTO_ID] description]];
     
     // Execute the fetch
     
@@ -36,37 +35,34 @@
         // handle error
     } else if (![matches count]) { // none found, so let's create a Photo for that Flickr photo
         photo = [NSEntityDescription insertNewObjectForEntityForName:@"Photo" inManagedObjectContext:context];
-        photo.identifier = [photoDictionary[FLICKR_PHOTO_ID] description];
+        photo.unique = [photoDictionary[FLICKR_PHOTO_ID] description];
+        photo.displayed = @(YES);
         photo.title = [photoDictionary[FLICKR_PHOTO_TITLE] description];
-        photo.shortInfo = [[photoDictionary valueForKeyPath:FLICKR_PHOTO_DESCRIPTION] description];
-        photo.urlLarge = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatLarge] absoluteString];
-        photo.urlOriginal = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatOriginal] absoluteString];
-        photo.urlThumbnail = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatSquare] absoluteString];
-        
-        NSURL *thumbnailUrl = [FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatSquare];
-        
-        [NetworkActivityIndicatorManager networkActivityIndicatorShouldShow];
-        NSData *thumbnailImage = [[NSData alloc] initWithContentsOfURL:thumbnailUrl];
-        [NetworkActivityIndicatorManager networkActivityIndicatorShouldHide];
-        
-        photo.imageThumbnail = thumbnailImage;
-         
+        photo.subtitle = [[photoDictionary valueForKeyPath:FLICKR_PHOTO_DESCRIPTION] description];
+        photo.largeImageUrl = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatLarge] absoluteString];
+        photo.originalImageUrl = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatOriginal] absoluteString];
+        photo.thumbnailImageUrl = [[FlickrFetcher urlForPhoto:photoDictionary format:FlickrPhotoFormatSquare] absoluteString];         
         
         NSMutableArray *tags = [[FlickrFetcher tagsForPhoto:photoDictionary] mutableCopy];
-        NSArray *excludedTags = @[@"cs193pspot",@"portrait",@"landscape"];
-        [tags removeObjectsInArray:excludedTags];
+        [tags removeObjectsInArray:[Tag excludedTags]];
+        // add tag '$ALL' to all photos
+        [tags addObject:[Tag AllTagName]];
+        
+        NSMutableSet *tagsSet = [NSMutableSet setWithCapacity:[tags count]];
         for (int i = 0; i < [tags count]; ++i) {
-            tags[i] = [Tag tagWithName:tags[i] inManagedObjectContext:context];
+            [tagsSet addObject:[Tag tagWithName:tags[i] inManagedObjectContext:context]];
         }
-        photo.tags = [NSSet setWithArray:tags];
-        NSString *photographerName = [photoDictionary[FLICKR_PHOTO_OWNER] description];
-        Photographer *photographer = [Photographer photographerWithName:photographerName inManagedObjectContext:context];
-        photo.owner = photographer;
+        photo.tags = tagsSet;
     } else { // found the Photo, just return it from the list of matches (which there will only be one of)
         photo = [matches lastObject];
     }
     
     return photo;
+}
+
+-(NSString *)sectionHeader
+{
+    return [[self.title substringToIndex:1] capitalizedString];
 }
 
 @end

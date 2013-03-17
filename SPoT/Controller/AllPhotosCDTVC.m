@@ -7,32 +7,41 @@
 //
 
 #import "AllPhotosCDTVC.h"
-
-@interface AllPhotosCDTVC ()
-
-@end
+#import "Photo.h"
+#import "Tag+Create.h"
 
 @implementation AllPhotosCDTVC
 
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+- (void)setManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
-    if (self) {
-        // Custom initialization
+    _managedObjectContext = managedObjectContext;
+    self.title = @"Photos by tag";
+    if (managedObjectContext) {
+        NSFetchRequest *requestTags = [NSFetchRequest fetchRequestWithEntityName:@"Tag"];
+        requestTags.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)]];
+        requestTags.predicate = [NSPredicate predicateWithFormat:@"name!=%@",[Tag AllTagName]];
+        self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:requestTags managedObjectContext:self.managedObjectContext sectionNameKeyPath:@"capitalizedName" cacheName:nil];
+        [self.fetchedResultsController performFetch:nil];
+    } else {
+        self.fetchedResultsController = nil;
     }
-    return self;
 }
 
-- (void)viewDidLoad
+- (Photo *)photoForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    [super viewDidLoad];
-	// Do any additional setup after loading the view.
+    NSSet *photosInSection = ((Tag *)[[self.fetchedResultsController fetchedObjects] objectAtIndex:indexPath.section]).photos;
+    NSPredicate *filterPredicate = [NSPredicate predicateWithFormat:@"displayed=YES"];
+    NSSet *visiblePhotosInSection = [photosInSection filteredSetUsingPredicate:filterPredicate];
+    NSArray *sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"title" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)]];
+    NSArray *sortedVisiblePhotosInSection = [visiblePhotosInSection sortedArrayUsingDescriptors:sortDescriptors];
+    return sortedVisiblePhotosInSection[indexPath.row];
 }
 
-- (void)didReceiveMemoryWarning
+#pragma mark - UITableViewDataSource
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
+    return [[[[self.fetchedResultsController fetchedObjects] objectAtIndex:section] nonDeletedPhotos] count];
 }
 
 @end
