@@ -27,9 +27,25 @@
     if (self.tag.managedObjectContext) {
         NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Photo"];
         request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"title" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)]];
-        request.predicate = [NSPredicate predicateWithFormat:@"%@ IN tags AND displayed=YES",self.tag];
+        request.predicate = [self photoListPredicate];
         self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:self.tag.managedObjectContext sectionNameKeyPath:@"sectionHeader" cacheName:nil];
     }
 }
+
+- (NSPredicate*)photoListPredicate{
+    return [NSPredicate predicateWithFormat:@"%@ IN tags AND displayed=YES",self.tag];
+}
+
+
+-(NSPredicate*)searchPredicateWithSeachString:(NSString*)searchString{
+    if ([searchString length] > 0) {
+        return [NSPredicate predicateWithFormat:@"%@ IN tags AND displayed=YES AND (title contains[cd] %@)", self.tag, searchString];
+    }
+    else {
+        return [self photoListPredicate];
+    }
+}
+
+
 
 @end

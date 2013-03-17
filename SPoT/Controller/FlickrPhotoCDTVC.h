@@ -10,4 +10,7 @@
 
 @interface FlickrPhotoCDTVC : CoreDataTableViewController
 
+-(NSPredicate*)photoListPredicate; // abstract
+-(NSPredicate*)searchPredicateWithSeachString:(NSString*)searchString; // abstract
+
 @end

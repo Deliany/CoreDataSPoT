@@ -44,4 +44,18 @@
     return [[[[self.fetchedResultsController fetchedObjects] objectAtIndex:section] nonDeletedPhotos] count];
 }
 
+- (NSPredicate*)photoListPredicate{
+    return [NSPredicate predicateWithFormat:@"name!=%@",[Tag AllTagName]];
+}
+
+
+-(NSPredicate*)searchPredicateWithSeachString:(NSString*)searchString{
+    if ([searchString length] > 0) {
+        return [NSPredicate predicateWithFormat:@"name!=%@ AND (name contains[cd] %@)",[Tag AllTagName], searchString];
+    }
+    else {
+        return [self photoListPredicate];
+    }
+}
+
 @end

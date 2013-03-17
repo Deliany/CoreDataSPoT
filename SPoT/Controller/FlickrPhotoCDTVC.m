@@ -25,7 +25,7 @@
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Photo"];
+    UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:@"Photo"];
     cell.imageView.image = nil; // because we reuse cells we have to clear the image
     Photo *photo = [self photoForRowAtIndexPath:indexPath];
     
@@ -65,7 +65,14 @@
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
     if ([sender isKindOfClass:[UITableViewCell class]]) {
-        NSIndexPath *indexPath = [self.tableView indexPathForCell:sender];
+        NSIndexPath *indexPath;
+        
+        if (self.searchDisplayController.active) {
+            indexPath = [self.searchDisplayController.searchResultsTableView indexPathForCell:sender];
+        } else {
+            indexPath = [self.tableView indexPathForCell:sender];
+        }
+
         if (indexPath) {
             if ([segue.identifier isEqualToString:SHOW_IMAGE_SEGUE_ID]) {
                 if ([segue.destinationViewController respondsToSelector:@selector(setImageURL:)]) {
@@ -102,6 +109,43 @@
         [self.fetchedResultsController performFetch:nil];
         [self.tableView reloadData];
     }
+}
+
+#pragma mark - SearchViewControl Delegate
+
+- (NSPredicate*)photoListPredicate{
+    return nil;
+}
+
+
+-(NSPredicate*)searchPredicateWithSeachString:(NSString*)searchString{
+    return nil;
+}
+
+- (BOOL)searchDisplayController:(UISearchDisplayController *)controller shouldReloadTableForSearchString:(NSString *)searchString {
+    NSInteger searchOption = controller.searchBar.selectedScopeButtonIndex;
+    return [self searchDisplayController:controller shouldReloadTableForSearchString:searchString searchScope:searchOption];
+}
+
+- (BOOL)searchDisplayController:(UISearchDisplayController *)controller shouldReloadTableForSearchScope:(NSInteger)searchOption {
+    NSString* searchString = controller.searchBar.text;
+    return [self searchDisplayController:controller shouldReloadTableForSearchString:searchString searchScope:searchOption];
+}
+
+- (void)searchDisplayController:(UISearchDisplayController *)controller didHideSearchResultsTableView:(UITableView *)tableView{
+    [self.fetchedResultsController.fetchRequest setPredicate:self.photoListPredicate];
+    [self performFetch];
+}
+
+- (BOOL)searchDisplayController:(UISearchDisplayController *)controller shouldReloadTableForSearchString:(NSString*)searchString searchScope:(NSInteger)searchOption {
+    NSPredicate *predicate = nil;
+    if ([searchString length]){
+        predicate = [self searchPredicateWithSeachString:searchString];
+    }
+    [self.fetchedResultsController.fetchRequest setPredicate:predicate];
+    [self performFetch];
+    
+    return YES;
 }
 
 #pragma mark - UISplitViewControllerDelegate
